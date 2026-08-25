@@ -113,6 +113,9 @@ class TunService : VpnService(), PlatformInterface, ServiceHandler {
                 workingPath = filesDir.absolutePath
                 tempPath = cacheDir.absolutePath
                 logMaxLines = 1000L
+                // Android 信号上下文执行 Go 代码会导致 native 崩溃（go issue 68760），
+                // SFA 在 debug 构建同样总是启用此 workaround
+                fixAndroidStack = true
             }
             Libbox.setup(setupOptions)
             val box = Libbox.newService(this, this)

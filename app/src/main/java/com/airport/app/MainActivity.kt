@@ -65,9 +65,41 @@ class MainActivity : ComponentActivity() {
         setContent {
             AirportTheme {
                 FirstLaunchDialog()
+                CrashLogDialog()
                 MainScreen()
             }
         }
+    }
+}
+
+/** 上次崩溃的 Java 异常信息弹窗（仅展示一次，展示后清除） */
+@Composable
+private fun CrashLogDialog() {
+    val context = LocalContext.current
+    val app = context.applicationContext as AirportApp
+    var crashInfo by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        crashInfo = app.consumeCrashLog()
+    }
+
+    crashInfo?.let { info ->
+        AlertDialog(
+            onDismissRequest = { crashInfo = null },
+            title = { Text("上次运行发生异常") },
+            text = {
+                Text(
+                    info,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 15,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { crashInfo = null }) {
+                    Text("知道了")
+                }
+            },
+        )
     }
 }
 
