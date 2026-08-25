@@ -13,6 +13,7 @@ import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.Process
+import android.system.OsConstants
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -84,6 +85,7 @@ class TunService : VpnService(), PlatformInterface, ServiceHandler {
         when (intent?.action) {
             ACTION_STOP -> {
                 stopSelf()
+                // 不使用 START_STICKY：崩溃后由系统重启会导致无限崩溃循环
                 return START_NOT_STICKY
             }
             ACTION_START -> {
@@ -291,10 +293,15 @@ class TunService : VpnService(), PlatformInterface, ServiceHandler {
                 index = javaInterface.index
                 runCatching { mtu = javaInterface.mtu }
                 dnsServer = StringArray(
-                    linkProperties.dnsServers.mapNotNull { it.hostAddress },
+                    linkProperties.dnsServers.mapNotNull { it.hostAddress?.stripIpv6Scope() },
                 )
                 addresses = StringArray(
-                    javaInterface.interfaceAddresses.map { "${it.address.hostAddress}/${it.networkPrefixLength}" },
+                    javaInterface.interfaceAddresses.map { addr ->
+                        // IPv6 link-local 的 hostAddress 带 %scope（如 fe80::1%wlan0），
+                        // 会令 Go 侧 netip.MustParsePrefix panic，必须剥离
+                        val host = addr.address.hostAddress?.stripIpv6Scope()
+                        "$host/${addr.networkPrefixLength}"
+                    },
                 )
                 type = when {
                     caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> Libbox.InterfaceTypeWIFI
@@ -303,10 +310,24 @@ class TunService : VpnService(), PlatformInterface, ServiceHandler {
                     else -> Libbox.InterfaceTypeOther
                 }
                 metered = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+                var dumpFlags = 0
+                if (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+                    dumpFlags = OsConstants.IFF_UP or OsConstants.IFF_RUNNING
+                }
+                if (javaInterface.isLoopback) dumpFlags = dumpFlags or OsConstants.IFF_LOOPBACK
+                if (javaInterface.isPointToPoint) dumpFlags = dumpFlags or OsConstants.IFF_POINTOPOINT
+                if (javaInterface.supportsMulticast()) dumpFlags = dumpFlags or OsConstants.IFF_MULTICAST
+                flags = dumpFlags
             }
             interfaces.add(boxInterface)
         }
         return InterfaceArray(interfaces)
+    }
+
+    /** 剥离 IPv6 scope（%wlan0 等），避免 Go 侧解析 panic */
+    private fun String.stripIpv6Scope(): String {
+        val idx = indexOf('%')
+        return if (idx > 0) substring(0, idx) else this
     }
 
     override fun underNetworkExtension(): Boolean = false
