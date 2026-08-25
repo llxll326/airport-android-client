@@ -23,7 +23,10 @@ object CoreController {
     val currentProfileId: StateFlow<Long?> = _currentProfileId
 
     /** 需要 VPN 授权（MainActivity 收集后启动授权界面） */
-    val vpnAuthRequired = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val vpnAuthRequired = MutableSharedFlow<Unit>(replay = 1, extraBufferCapacity = 1)
+
+    /** 启动/运行错误消息（UI 用 Snackbar 展示后清空） */
+    val errorMessage = MutableSharedFlow<String>(extraBufferCapacity = 1)
 
     private var pendingProfile: ProfileEntity? = null
 
@@ -63,5 +66,10 @@ object CoreController {
     internal fun updateRunningState(running: Boolean, profileId: Long?) {
         _isRunning.value = running
         _currentProfileId.value = profileId
+    }
+
+    /** 由 TunService 上报启动/运行错误（供 UI 展示） */
+    internal fun reportError(message: String) {
+        errorMessage.tryEmit(message)
     }
 }

@@ -20,12 +20,16 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,56 +50,75 @@ fun ProfilesScreen(
     val currentProfileId by viewModel.currentProfileId.collectAsState()
 
     val selectedProfile = profiles.firstOrNull { it.id == selectedId }
-    val connectedProfile = profiles.firstOrNull { it.id == currentProfileId }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        ConnectionCard(
-            isRunning = isRunning,
-            connectedProfile = connectedProfile ?: selectedProfile,
-            selectedName = selectedProfile?.name,
-            onToggle = viewModel::toggleConnection,
-            modifier = Modifier.padding(16.dp),
-        )
+    // 连接错误/提示：Snackbar 展示
+    val snackbarHostState = remember { SnackbarHostState() }
+    val message by viewModel.message.collectAsState()
+    LaunchedEffect(message) {
+        message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
+    val coreError by viewModel.coreError.collectAsState()
+    LaunchedEffect(coreError) {
+        coreError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearCoreError()
+        }
+    }
 
-        if (profiles.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("还没有可用节点", style = MaterialTheme.typography.titleMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(onClick = onGoToSubscriptions) {
-                        Text("去添加订阅 →")
-                    }
-                }
-            }
-        } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                subscriptions.forEach { sub ->
-                    val subProfiles = profiles.filter { it.subscriptionId == sub.id }
-                    if (subProfiles.isNotEmpty()) {
-                        item(key = "sub-${sub.id}") {
-                            Text(
-                                text = sub.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
-                            )
-                        }
-                        items(subProfiles, key = { it.id }) { profile ->
-                            ProfileItem(
-                                profile = profile,
-                                selected = profile.id == selectedId,
-                                onClick = { viewModel.onProfileClick(profile) },
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(start = 56.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                            )
+    Box {
+        Column(modifier = Modifier.fillMaxSize()) {
+            ConnectionCard(
+                isRunning = isRunning,
+                connectedProfile = profiles.firstOrNull { it.id == currentProfileId } ?: selectedProfile,
+                selectedName = selectedProfile?.name,
+                onToggle = viewModel::toggleConnection,
+                modifier = Modifier.padding(16.dp),
+            )
+
+            if (profiles.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("还没有可用节点", style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TextButton(onClick = onGoToSubscriptions) {
+                            Text("去添加订阅 →")
                         }
                     }
                 }
-                item { Spacer(modifier = Modifier.height(16.dp)) }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    subscriptions.forEach { sub ->
+                        val subProfiles = profiles.filter { it.subscriptionId == sub.id }
+                        if (subProfiles.isNotEmpty()) {
+                            item(key = "sub-${sub.id}") {
+                                Text(
+                                    text = sub.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+                                )
+                            }
+                            items(subProfiles, key = { it.id }) { profile ->
+                                ProfileItem(
+                                    profile = profile,
+                                    selected = profile.id == selectedId,
+                                    onClick = { viewModel.onProfileClick(profile) },
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 56.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                )
+                            }
+                        }
+                    }
+                    item { Spacer(modifier = Modifier.height(16.dp)) }
+                }
             }
         }
+        SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
     }
 }
 

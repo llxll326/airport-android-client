@@ -30,6 +30,24 @@ class ProfilesViewModel : ViewModel() {
     /** 一次性提示消息（如"请先选择节点"） */
     val message = MutableStateFlow<String?>(null)
 
+    /** 核心层启动/运行错误（来自 CoreController.errorMessage） */
+    private val _coreError = MutableStateFlow<String?>(null)
+    val coreError: StateFlow<String?> = _coreError
+
+    init {
+        viewModelScope.launch {
+            CoreController.errorMessage.collect { _coreError.value = it }
+        }
+    }
+
+    fun clearCoreError() {
+        _coreError.value = null
+    }
+
+    fun clearMessage() {
+        message.value = null
+    }
+
     fun selectProfile(id: Long) {
         viewModelScope.launch { app.settings.setSelectedProfileId(id) }
     }

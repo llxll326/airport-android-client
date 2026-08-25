@@ -122,7 +122,9 @@ class TunService : VpnService(), PlatformInterface, ServiceHandler {
             true
         } catch (e: Exception) {
             Log.e(TAG, "start sing-box failed", e)
-            updateNotification("连接失败：${e.message ?: "未知错误"}")
+            val message = e.message ?: "未知错误"
+            updateNotification("连接失败：$message")
+            CoreController.reportError("连接失败：$message")
             false
         }
     }
