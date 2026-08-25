@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android
+local.properties
+*.apk
+*.aab
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 本地工具链（不入库）
+.tools/
+.tools-jdk/
+
+# sing-box 核心绑定（由 scripts/build_libbox.bat 重建）
+app/libs/
+.zcode/
