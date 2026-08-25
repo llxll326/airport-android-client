@@ -171,7 +171,7 @@ class TunService : VpnService(), PlatformInterface, ServiceHandler {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("机场 · 代理隧道")
+            .setContentTitle("${getString(R.string.app_name)} · 代理隧道")
             .setContentText(text)
             .setContentIntent(contentIntent)
             .setOngoing(true)

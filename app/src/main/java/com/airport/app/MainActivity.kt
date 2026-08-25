@@ -9,6 +9,19 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.airport.app.core.CoreController
@@ -51,8 +64,43 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             AirportTheme {
+                FirstLaunchDialog()
                 MainScreen()
             }
         }
+    }
+}
+
+/** 首次进入应用时展示的欢迎弹窗（仅一次） */
+@Composable
+private fun FirstLaunchDialog() {
+    val context = LocalContext.current
+    val app = context.applicationContext as AirportApp
+    val welcomeShown by app.settings.welcomeShown.collectAsState(initial = false)
+    val scope = rememberCoroutineScope()
+    var showDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(welcomeShown) {
+        if (!welcomeShown) showDialog = true
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { /* 必须点击按钮关闭 */ },
+            title = {
+                Text("管哥温馨提示", style = MaterialTheme.typography.titleLarge)
+            },
+            text = {
+                Text("管哥温馨提示，录得越少身体越好")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDialog = false
+                    scope.launch { app.settings.setWelcomeShown() }
+                }) {
+                    Text("知道了")
+                }
+            },
+        )
     }
 }
