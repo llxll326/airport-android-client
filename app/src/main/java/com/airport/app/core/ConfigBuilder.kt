@@ -48,7 +48,6 @@ object ConfigBuilder {
         .put("auto_route", true)
         .put("strict_route", true)
         .put("stack", "gvisor")
-        .put("sniff", true)
 
     private fun buildRoute(): JSONObject {
         // 私网/保留地址直连，避免绕代理
