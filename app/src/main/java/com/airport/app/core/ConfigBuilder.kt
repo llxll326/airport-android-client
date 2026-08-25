@@ -14,12 +14,20 @@ import org.json.JSONObject
  */
 object ConfigBuilder {
 
-    fun build(proxyOutboundJson: String): String {
+    /**
+     * 生成完整 sing-box 配置。
+     * @param proxyOutboundJson 代理节点 outbound JSON
+     * @param logPath 日志文件路径（null 则仅输出到内存）
+     */
+    fun build(proxyOutboundJson: String, logPath: String? = null): String {
         // 确保出站 tag 固定为 proxy
         val proxy = JSONObject(proxyOutboundJson).put("tag", "proxy")
 
+        val log = JSONObject().put("level", "info").put("timestamp", true)
+        if (!logPath.isNullOrBlank()) log.put("path", logPath)
+
         val config = JSONObject()
-            .put("log", JSONObject().put("level", "info").put("timestamp", true))
+            .put("log", log)
             .put("dns", buildDns())
             .put("inbounds", JSONArray().put(buildTunInbound()))
             .put("outbounds", JSONArray()

@@ -33,6 +33,7 @@ import libbox.libbox.StringIterator
 import libbox.libbox.SystemProxyStatus
 import libbox.libbox.TunOptions
 import libbox.libbox.WIFIState
+import java.io.File
 import java.net.InetSocketAddress
 
 /**
@@ -57,7 +58,13 @@ class TunService : VpnService(), PlatformInterface, ServiceHandler {
         fun start(context: Context, profile: com.airport.app.data.entity.ProfileEntity) {
             val intent = Intent(context, TunService::class.java).apply {
                 action = ACTION_START
-                putExtra(EXTRA_CONFIG, ConfigBuilder.build(profile.outbound))
+                putExtra(
+                    EXTRA_CONFIG,
+                    ConfigBuilder.build(
+                        profile.outbound,
+                        logPath = File(context.filesDir, "sing-box.log").absolutePath,
+                    ),
+                )
                 putExtra(EXTRA_PROFILE_ID, profile.id)
                 putExtra(EXTRA_PROFILE_NAME, profile.name)
             }
