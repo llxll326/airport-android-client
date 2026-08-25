@@ -32,9 +32,10 @@ if not exist "%GO_BIN%\gomobile.exe" (
 echo [2/3] 构建 libbox.aar（首次约 5-15 分钟）...
 cd /d "%~dp0..\core"
 REM -checklinkname=0：pidfd_android.go 通过 go:linkname 引用 os.checkPidfdOnce，Go 1.23+ 交叉编译需关闭检查
-REM -tags：启用 uTLS 指纹（含 reality）/ QUIC（tuic、hysteria2）/ gRPC 传输 / WireGuard / gvisor 协议栈
-REM 注意：with_reality_server 已并入 with_utls、with_ech 已迁移 stdlib，二者不可再传
-"%GO_BIN%\gomobile.exe" bind -v -androidapi 21 -javapkg libbox -tags with_quic,with_grpc,with_dhcp,with_wireguard,with_utls,with_gvisor -ldflags="-checklinkname=0" -o ..\app\libs\libbox.aar .\libbox || exit /b 1
+REM -tags：uTLS 指纹（含 reality）/ QUIC（tuic、hysteria2）/ gRPC 传输 / WireGuard / gvisor 协议栈 / Clash API
+REM 注意：daemon 路径始终设置 PlatformLogWriter → 强制 needClashAPI，故 with_clash_api 必须启用
+REM with_reality_server 已并入 with_utls、with_ech 已迁移 stdlib，二者不可再传
+"%GO_BIN%\gomobile.exe" bind -v -androidapi 21 -javapkg libbox -tags with_quic,with_grpc,with_dhcp,with_wireguard,with_utls,with_gvisor,with_clash_api -ldflags="-checklinkname=0" -o ..\app\libs\libbox.aar .\libbox || exit /b 1
 
 echo [3/3] 完成：app\libs\libbox.aar
 endlocal
