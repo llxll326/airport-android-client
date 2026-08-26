@@ -24,3 +24,4 @@ captures/
 # sing-box 核心绑定（由 scripts/build_libbox.bat 重建）
 app/libs/
 .zcode/
+*.exe
