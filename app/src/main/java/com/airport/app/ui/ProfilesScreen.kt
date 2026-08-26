@@ -14,11 +14,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -30,12 +32,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airport.app.data.entity.ProfileEntity
+import kotlinx.coroutines.launch
 
 /** 首页：连接控制卡片 + 节点列表（按订阅分组） */
 @Composable
@@ -50,9 +55,11 @@ fun ProfilesScreen(
     val currentProfileId by viewModel.currentProfileId.collectAsState()
 
     val selectedProfile = profiles.firstOrNull { it.id == selectedId }
+    val context = LocalContext.current
 
     // 连接错误/提示：Snackbar 展示
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val message by viewModel.message.collectAsState()
     LaunchedEffect(message) {
         message?.let {
@@ -106,6 +113,17 @@ fun ProfilesScreen(
                                     profile = profile,
                                     selected = profile.id == selectedId,
                                     onClick = { viewModel.onProfileClick(profile) },
+                                    onCopy = {
+                                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                                                as android.content.ClipboardManager
+                                        clipboard.setPrimaryClip(
+                                            android.content.ClipData.newPlainText(
+                                                "节点链接",
+                                                profile.link,
+                                            ),
+                                        )
+                                        scope.launch { snackbarHostState.showSnackbar("节点链接已复制") }
+                                    },
                                 )
                                 HorizontalDivider(
                                     modifier = Modifier.padding(start = 56.dp),
@@ -171,6 +189,7 @@ private fun ProfileItem(
     profile: ProfileEntity,
     selected: Boolean,
     onClick: () -> Unit,
+    onCopy: () -> Unit,
 ) {
     Card(
         onClick = onClick,
@@ -183,7 +202,7 @@ private fun ProfileItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -200,6 +219,13 @@ private fun ProfileItem(
                     "${profile.protocol} · ${profile.server}:${profile.port}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            IconButton(onClick = onCopy) {
+                Icon(
+                    Icons.Filled.ContentCopy,
+                    contentDescription = "复制节点链接",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
