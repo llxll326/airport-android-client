@@ -33,7 +33,8 @@ object ConfigBuilder {
             .put("outbounds", JSONArray()
                 .put(proxy)
                 .put(JSONObject().put("type", "direct").put("tag", "direct"))
-                .put(JSONObject().put("type", "block").put("tag", "block")))
+                .put(JSONObject().put("type", "block").put("tag", "block"))
+                .put(JSONObject().put("type", "dns").put("tag", "dns-out")))
             .put("route", buildRoute())
         return config.toString()
     }
@@ -75,9 +76,10 @@ object ConfigBuilder {
             .put("127.0.0.0/8")
         return JSONObject()
             .put("rules", JSONArray()
-                // 嗅探协议（sing-box 1.13 起需用 action 启用，protocol 规则依赖它匹配 DNS）
+                // 嗅探协议（sing-box 1.13 起需用 action 启用，protocol 条件依赖它）
                 .put(JSONObject().put("action", "sniff"))
-                .put(JSONObject().put("protocol", "dns").put("outbound", "dns-out"))
+                // DNS 查询劫持到 dns 模块（1.13 移除 dns-out，改用 hijack-dns action）
+                .put(JSONObject().put("protocol", "dns").put("action", "hijack-dns"))
                 .put(JSONObject().put("ip_cidr", privateCidr).put("outbound", "direct")))
             .put("final", "proxy")
             .put("auto_detect_interface", true)

@@ -80,7 +80,7 @@ const sampleConfig = `{
   "route": {
     "rules": [
       {"action": "sniff"},
-      {"protocol": "dns", "outbound": "dns-out"},
+      {"protocol": "dns", "action": "hijack-dns"},
       {"ip_cidr": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "127.0.0.0/8"], "outbound": "direct"}
     ],
     "final": "proxy",
