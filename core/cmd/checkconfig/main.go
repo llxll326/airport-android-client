@@ -10,7 +10,7 @@ import (
 )
 
 const sampleConfig = `{
-  "log": {"level": "info", "timestamp": true},
+  "log": {"level": "info", "timestamp": true, "output": "/tmp/sing-box.log"},
   "dns": {
     "servers": [
       {"tag": "dns-remote", "address": "https://1.1.1.1/dns-query", "detour": "proxy"}

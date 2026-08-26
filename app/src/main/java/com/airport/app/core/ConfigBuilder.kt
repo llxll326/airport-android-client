@@ -24,7 +24,7 @@ object ConfigBuilder {
         val proxy = JSONObject(proxyOutboundJson).put("tag", "proxy")
 
         val log = JSONObject().put("level", "info").put("timestamp", true)
-        if (!logPath.isNullOrBlank()) log.put("path", logPath)
+        if (!logPath.isNullOrBlank()) log.put("output", logPath)
 
         val config = JSONObject()
             .put("log", log)

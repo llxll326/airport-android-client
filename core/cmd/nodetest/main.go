@@ -39,6 +39,14 @@ func main() {
 
 	config := fmt.Sprintf(`{
   "log": {"level": "info", "timestamp": true},
+  "dns": {
+    "servers": [
+      {"tag": "dns-remote", "address": "https://1.1.1.1/dns-query", "detour": "proxy"},
+      {"tag": "dns-local", "address": "223.5.5.5", "detour": "direct"}
+    ],
+    "final": "dns-remote",
+    "strategy": "ipv4_only"
+  },
   "inbounds": [
     {"type": "http", "tag": "http-in", "listen": "127.0.0.1", "listen_port": %d},
     {"type": "socks", "tag": "socks-in", "listen": "127.0.0.1", "listen_port": %d}
@@ -47,7 +55,14 @@ func main() {
     %s,
     {"type": "direct", "tag": "direct"}
   ],
-  "route": {"final": "proxy"}
+  "route": {
+    "rules": [
+      {"protocol": "dns", "outbound": "dns-out"},
+      {"ip_cidr": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "127.0.0.0/8"], "outbound": "direct"}
+    ],
+    "final": "proxy",
+    "auto_detect_interface": true
+  }
 }`, port, port+1, string(obJSON))
 
 	if err := libbox.Setup(&libbox.SetupOptions{
