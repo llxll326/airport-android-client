@@ -13,9 +13,14 @@ const sampleConfig = `{
   "log": {"level": "info", "timestamp": true, "output": "/tmp/sing-box.log"},
   "dns": {
     "servers": [
-      {"tag": "dns-remote", "address": "https://1.1.1.1/dns-query", "detour": "proxy"}
+      {"tag": "dns-remote", "address": "https://1.1.1.1/dns-query", "detour": "proxy"},
+      {"tag": "dns-local", "address": "223.5.5.5", "detour": "direct"}
     ],
-    "final": "dns-remote"
+    "rules": [
+      {"domain_suffix": [".xn--ghqu5fm27b67w.com"], "server": "dns-local"}
+    ],
+    "final": "dns-remote",
+    "strategy": "ipv4_only"
   },
   "inbounds": [
     {

@@ -7,10 +7,12 @@ import org.json.JSONObject
  * sing-box 配置生成器：将单个代理出站装配为完整的 TUN 模式配置。
  *
  * 生成结构：
- * - dns：DoH 服务器（经代理出站 detour，避免 DNS 污染）
+ * - log：日志级别 + 可选文件输出
+ * - dns：DoH（经代理 detour，防污染）+ 本地 DNS 直连兜底；
+ *   代理服务器域名强制走本地 DNS，避免 detour 解析循环（DNS query loopback）
  * - inbounds：tun（auto_route + strict_route，gvisor 协议栈）
  * - outbounds：proxy / direct / block
- * - route：私网直连 + DNS 劫持到 dns 模块，其余全部走代理
+ * - route：sniff 嗅探 → hijack-dns 劫持 DNS 查询到 dns 模块 → 私网直连，其余走代理
  */
 object ConfigBuilder {
 
@@ -20,15 +22,16 @@ object ConfigBuilder {
      * @param logPath 日志文件路径（null 则仅输出到内存）
      */
     fun build(proxyOutboundJson: String, logPath: String? = null): String {
-        // 确保出站 tag 固定为 proxy
+        // 确保出站 tag 固定为 proxy，并提取服务器地址（DNS 防循环用）
         val proxy = JSONObject(proxyOutboundJson).put("tag", "proxy")
+        val proxyServer = proxy.optString("server", "")
 
         val log = JSONObject().put("level", "info").put("timestamp", true)
         if (!logPath.isNullOrBlank()) log.put("output", logPath)
 
         val config = JSONObject()
             .put("log", log)
-            .put("dns", buildDns())
+            .put("dns", buildDns(proxyServer))
             .put("inbounds", JSONArray().put(buildTunInbound()))
             .put("outbounds", JSONArray()
                 .put(proxy)
@@ -38,8 +41,8 @@ object ConfigBuilder {
         return config.toString()
     }
 
-    private fun buildDns(): JSONObject {
-        // remote：DoH 走代理（防污染）；local：国内 DNS 直连兜底（DoH 不可用时保证可解析）
+    private fun buildDns(proxyServer: String): JSONObject {
+        // remote：DoH 走代理（防污染）；local：国内 DNS 直连兜底
         val servers = JSONArray()
             .put(JSONObject()
                 .put("tag", "dns-remote")
@@ -49,10 +52,36 @@ object ConfigBuilder {
                 .put("tag", "dns-local")
                 .put("address", "223.5.5.5")
                 .put("detour", "direct"))
+
+        val rules = JSONArray()
+        // 代理服务器域名走本地 DNS，防止 DoH(detour proxy) 解析代理服务器时循环
+        val rootDomain = rootDomainOf(proxyServer)
+        if (rootDomain != null) {
+            rules.put(JSONObject()
+                .put("domain_suffix", JSONArray().put("." + rootDomain))
+                .put("server", "dns-local"))
+        }
+
         return JSONObject()
             .put("servers", servers)
+            .put("rules", rules)
             .put("final", "dns-remote")
             .put("strategy", "ipv4_only")
+    }
+
+    /** 从服务器地址提取根域（eTLD+1 的最后两段）；IP 地址返回 null */
+    private fun rootDomainOf(server: String): String? {
+        val s = server.trim()
+        if (s.isEmpty() || s.isIpAddress()) return null
+        val parts = s.split('.')
+        if (parts.size < 2) return null
+        return parts.takeLast(2).joinToString(".")
+    }
+
+    private fun String.isIpAddress(): Boolean {
+        // 简单 IPv4/IPv6 判断（非纯数字分段视为域名）
+        if (contains(':')) return true // IPv6
+        return split('.').all { it.isNotEmpty() && it.all { c -> c.isDigit() } }
     }
 
     private fun buildTunInbound(): JSONObject = JSONObject()
