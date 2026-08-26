@@ -75,6 +75,8 @@ object ConfigBuilder {
             .put("127.0.0.0/8")
         return JSONObject()
             .put("rules", JSONArray()
+                // 嗅探协议（sing-box 1.13 起需用 action 启用，protocol 规则依赖它匹配 DNS）
+                .put(JSONObject().put("action", "sniff"))
                 .put(JSONObject().put("protocol", "dns").put("outbound", "dns-out"))
                 .put(JSONObject().put("ip_cidr", privateCidr).put("outbound", "direct")))
             .put("final", "proxy")
