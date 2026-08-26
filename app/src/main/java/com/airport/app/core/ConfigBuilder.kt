@@ -110,6 +110,8 @@ object ConfigBuilder {
                 .put(JSONObject().put("protocol", "dns").put("action", "hijack-dns"))
                 .put(JSONObject().put("ip_cidr", privateCidr).put("outbound", "direct")))
             .put("final", "proxy")
-            .put("auto_detect_interface", true)
+            // 不使用 auto_detect_interface：手机单默认网络场景下，
+            // 接口绑定依赖 GetInterfaces/默认接口 index 完全匹配，任一缺失即报
+            // "no available network interface"；走系统默认路由 + socket protect 更可靠
     }
 }
