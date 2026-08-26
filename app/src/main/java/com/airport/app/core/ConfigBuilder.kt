@@ -10,7 +10,7 @@ import org.json.JSONObject
  * - dns：DoH 服务器（经代理出站 detour，避免 DNS 污染）
  * - inbounds：tun（auto_route + strict_route，gvisor 协议栈）
  * - outbounds：proxy / direct / block
- * - route：私网直连 + DNS 走 dns-out，其余全部走代理
+ * - route：私网直连 + DNS 劫持到 dns 模块，其余全部走代理
  */
 object ConfigBuilder {
 
@@ -33,8 +33,7 @@ object ConfigBuilder {
             .put("outbounds", JSONArray()
                 .put(proxy)
                 .put(JSONObject().put("type", "direct").put("tag", "direct"))
-                .put(JSONObject().put("type", "block").put("tag", "block"))
-                .put(JSONObject().put("type", "dns").put("tag", "dns-out")))
+                .put(JSONObject().put("type", "block").put("tag", "block")))
             .put("route", buildRoute())
         return config.toString()
     }
