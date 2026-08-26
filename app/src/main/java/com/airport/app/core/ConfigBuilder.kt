@@ -61,6 +61,9 @@ object ConfigBuilder {
                 .put("domain_suffix", JSONArray().put("." + rootDomain))
                 .put("server", "dns-local"))
         }
+        // 通配规则：DoH（防污染）优先，失败自动 fallback 本地 DNS（容错）
+        rules.put(JSONObject()
+            .put("server", JSONArray().put("dns-remote").put("dns-local")))
 
         return JSONObject()
             .put("servers", servers)
@@ -110,8 +113,7 @@ object ConfigBuilder {
                 .put(JSONObject().put("protocol", "dns").put("action", "hijack-dns"))
                 .put(JSONObject().put("ip_cidr", privateCidr).put("outbound", "direct")))
             .put("final", "proxy")
-            // 不使用 auto_detect_interface：手机单默认网络场景下，
-            // 接口绑定依赖 GetInterfaces/默认接口 index 完全匹配，任一缺失即报
-            // "no available network interface"；走系统默认路由 + socket protect 更可靠
+            // 必须开启：platform 模式下 ProtectFunc（socket protect 防 TUN 循环）依赖它
+            .put("auto_detect_interface", true)
     }
 }

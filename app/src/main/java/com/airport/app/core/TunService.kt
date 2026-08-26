@@ -285,48 +285,64 @@ class TunService : VpnService(), PlatformInterface, ServiceHandler {
         defaultNetworkMonitor.setListener(this, null)
     }
 
-    /** 上报当前网络接口列表（供 sing-box 选择出站接口） */
+    /**
+     * 上报当前网络接口列表（供 sing-box 选择出站接口）。
+     * 直接枚举 java.net.NetworkInterface（不依赖 ConnectivityManager.allNetworks，
+     * 避免 TUN 建立瞬间物理网络信息缺失导致接口列表为空/不全）。
+     */
     override fun getInterfaces(): NetworkInterfaceIterator {
         val cm = getSystemService(ConnectivityManager::class.java)
-        val javaInterfaces = java.net.NetworkInterface.getNetworkInterfaces().toList()
         val interfaces = mutableListOf<libbox.libbox.NetworkInterface>()
-        for (network in cm.allNetworks) {
-            val linkProperties = cm.getLinkProperties(network) ?: continue
-            val name = linkProperties.interfaceName ?: continue
-            val javaInterface = javaInterfaces.find { it.name == name } ?: continue
-            val caps = cm.getNetworkCapabilities(network) ?: continue
-            val boxInterface = libbox.libbox.NetworkInterface().apply {
-                this.name = name
-                index = javaInterface.index
-                runCatching { mtu = javaInterface.mtu }
-                dnsServer = StringArray(
-                    linkProperties.dnsServers.mapNotNull { it.hostAddress?.stripIpv6Scope() },
-                )
-                addresses = StringArray(
-                    javaInterface.interfaceAddresses.map { addr ->
-                        // IPv6 link-local 的 hostAddress 带 %scope（如 fe80::1%wlan0），
-                        // 会令 Go 侧 netip.MustParsePrefix panic，必须剥离
-                        val host = addr.address.hostAddress?.stripIpv6Scope()
-                        "$host/${addr.networkPrefixLength}"
-                    },
-                )
-                type = when {
-                    caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> Libbox.InterfaceTypeWIFI
-                    caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> Libbox.InterfaceTypeCellular
-                    caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> Libbox.InterfaceTypeEthernet
-                    else -> Libbox.InterfaceTypeOther
+        runCatching {
+            val javaInterfaces = java.net.NetworkInterface.getNetworkInterfaces().toList()
+            for (javaInterface in javaInterfaces) {
+                val name = javaInterface.name ?: continue
+                // 跳过回环与虚拟接口，避免干扰出站选择
+                if (javaInterface.isLoopback) continue
+                if (name.startsWith("tun") || name.startsWith("ppp") || name.startsWith("dummy")) continue
+                val boxInterface = libbox.libbox.NetworkInterface().apply {
+                    this.name = name
+                    index = javaInterface.index
+                    runCatching { mtu = javaInterface.mtu }
+                    addresses = StringArray(
+                        javaInterface.interfaceAddresses.map { addr ->
+                            // IPv6 link-local 的 hostAddress 带 %scope（如 fe80::1%wlan0），
+                            // 会令 Go 侧 netip.MustParsePrefix panic，必须剥离
+                            val host = addr.address.hostAddress?.stripIpv6Scope()
+                            "$host/${addr.networkPrefixLength}"
+                        },
+                    )
+                    type = Libbox.InterfaceTypeOther
+                    var dumpFlags = 0
+                    if (javaInterface.isUp) dumpFlags = dumpFlags or OsConstants.IFF_UP
+                    if (javaInterface.isLoopback) dumpFlags = dumpFlags or OsConstants.IFF_LOOPBACK
+                    if (javaInterface.isPointToPoint) dumpFlags = dumpFlags or OsConstants.IFF_POINTOPOINT
+                    if (javaInterface.supportsMulticast()) dumpFlags = dumpFlags or OsConstants.IFF_MULTICAST
+                    flags = dumpFlags
                 }
-                metered = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
-                var dumpFlags = 0
-                if (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
-                    dumpFlags = OsConstants.IFF_UP or OsConstants.IFF_RUNNING
-                }
-                if (javaInterface.isLoopback) dumpFlags = dumpFlags or OsConstants.IFF_LOOPBACK
-                if (javaInterface.isPointToPoint) dumpFlags = dumpFlags or OsConstants.IFF_POINTOPOINT
-                if (javaInterface.supportsMulticast()) dumpFlags = dumpFlags or OsConstants.IFF_MULTICAST
-                flags = dumpFlags
+                interfaces.add(boxInterface)
             }
-            interfaces.add(boxInterface)
+        }
+        // 补充默认网络的 DNS 与类型信息（尽力而为，不影响列表完整性）
+        runCatching {
+            val defaultNetwork = cm.activeNetwork
+            val lp = defaultNetwork?.let { cm.getLinkProperties(it) }
+            val caps = defaultNetwork?.let { cm.getNetworkCapabilities(it) }
+            if (lp != null && caps != null) {
+                val boxInterface = interfaces.firstOrNull { it.name == lp.interfaceName }
+                if (boxInterface != null) {
+                    boxInterface.dnsServer = StringArray(
+                        lp.dnsServers.mapNotNull { it.hostAddress?.stripIpv6Scope() },
+                    )
+                    boxInterface.type = when {
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> Libbox.InterfaceTypeWIFI
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> Libbox.InterfaceTypeCellular
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> Libbox.InterfaceTypeEthernet
+                        else -> Libbox.InterfaceTypeOther
+                    }
+                    boxInterface.metered = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+                }
+            }
         }
         return InterfaceArray(interfaces)
     }
