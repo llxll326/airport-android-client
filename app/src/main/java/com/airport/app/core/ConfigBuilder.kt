@@ -38,14 +38,22 @@ object ConfigBuilder {
         return config.toString()
     }
 
-    private fun buildDns(): JSONObject = JSONObject()
-        .put("servers", JSONArray().put(
-            JSONObject()
+    private fun buildDns(): JSONObject {
+        // remote：DoH 走代理（防污染）；local：国内 DNS 直连兜底（DoH 不可用时保证可解析）
+        val servers = JSONArray()
+            .put(JSONObject()
                 .put("tag", "dns-remote")
                 .put("address", "https://1.1.1.1/dns-query")
-                .put("detour", "proxy")
-        ))
-        .put("final", "dns-remote")
+                .put("detour", "proxy"))
+            .put(JSONObject()
+                .put("tag", "dns-local")
+                .put("address", "223.5.5.5")
+                .put("detour", "direct"))
+        return JSONObject()
+            .put("servers", servers)
+            .put("final", "dns-remote")
+            .put("strategy", "ipv4_only")
+    }
 
     private fun buildTunInbound(): JSONObject = JSONObject()
         .put("type", "tun")
