@@ -380,6 +380,10 @@ private class DefaultNetworkMonitor {
     private var cm: ConnectivityManager? = null
 
     private val callback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            report(network)
+        }
+
         override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
             report(network)
         }
@@ -402,20 +406,32 @@ private class DefaultNetworkMonitor {
         }
     }
 
+    /**
+     * 上报默认接口。接口信息在 TUN 刚建立时可能尚未就绪，
+     * 参照 SFA 做法：获取失败时最多重试 10 次（每次 100ms）。
+     */
     private fun report(network: Network?) {
         val manager = cm ?: return
-        val lp = network?.let { manager.getLinkProperties(it) } ?: return
-        val name = lp.interfaceName ?: return
-        val caps = manager.getNetworkCapabilities(network)
-        val index = runCatching {
-            java.net.NetworkInterface.getNetworkInterfaces().toList().firstOrNull { it.name == name }?.index ?: 0
-        }.getOrDefault(0)
-        listener?.updateDefaultInterface(
-            name,
-            index,
-            caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == false,
-            false,
-        )
+        if (network == null) return
+        for (attempt in 0 until 10) {
+            val lp = manager.getLinkProperties(network)
+            val name = lp?.interfaceName
+            val index = if (!name.isNullOrEmpty()) {
+                runCatching { java.net.NetworkInterface.getByName(name)?.index ?: 0 }
+                    .getOrDefault(0)
+            } else 0
+            if (index > 0) {
+                val caps = manager.getNetworkCapabilities(network)
+                listener?.updateDefaultInterface(
+                    name!!,
+                    index,
+                    caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == false,
+                    false,
+                )
+                return
+            }
+            Thread.sleep(100)
+        }
     }
 }
 
