@@ -61,9 +61,6 @@ object ConfigBuilder {
                 .put("domain_suffix", JSONArray().put("." + rootDomain))
                 .put("server", "dns-local"))
         }
-        // 通配规则：DoH（防污染）优先，失败自动 fallback 本地 DNS（容错）
-        rules.put(JSONObject()
-            .put("server", JSONArray().put("dns-remote").put("dns-local")))
 
         return JSONObject()
             .put("servers", servers)
