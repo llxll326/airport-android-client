@@ -1,6 +1,7 @@
 package com.airport.app.ui
 
 import android.os.Build
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,9 +24,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.airport.app.BuildConfig
 import com.airport.app.AirportApp
 import java.io.File
@@ -83,22 +87,37 @@ fun SettingsScreen() {
     }
 
     if (showLogDialog) {
-        AlertDialog(
+        Dialog(
             onDismissRequest = { showLogDialog = false },
-            title = { Text("运行日志") },
-            text = {
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(16.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "运行日志",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { showLogDialog = false }) { Text("关闭") }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     logContent,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier
-                        .verticalScroll(rememberScrollState())
-                        .height(400.dp),
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
                 )
-            },
-            confirmButton = {
-                TextButton(onClick = { showLogDialog = false }) { Text("关闭") }
-            },
-        )
+            }
+        }
     }
 }
 
